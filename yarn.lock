@@ -4815,11 +4815,6 @@
     "jscodeshift" "^0.11.0"
     "nullthrows" "^1.1.1"
 
-"react-native-dialog-input@^1.0.8":
-  "integrity" "sha512-W9YNMt6r+rUUMDEkOR1WMuGfSJw97ujB8H1xp8TjJTOnYVSlsf4aEP6t+J8tVk3XZaDcTawXgDjxH6E1WVWRog=="
-  "resolved" "https://registry.npmjs.org/react-native-dialog-input/-/react-native-dialog-input-1.0.8.tgz"
-  "version" "1.0.8"
-
 "react-native-dialogs@^1.0.2":
   "integrity" "sha512-JduVYRXvLTT4k4VfXuKt3HF2/fixsR1EDXkvNf8fJwxKZUs2kzs1E0EtgiAx4IgYMTOewLPVtzTVfiv0GWeHuA=="
   "resolved" "https://registry.npmjs.org/react-native-dialogs/-/react-native-dialogs-1.1.1.tgz"

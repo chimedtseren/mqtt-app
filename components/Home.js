@@ -1,5 +1,5 @@
 import React,{ useState } from 'react'
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View, StatusBar } from 'react-native';
 import { Client, Message } from 'react-native-paho-mqtt';
 import { TextInput } from 'react-native-gesture-handler';
 // import socketclient from './Connect';

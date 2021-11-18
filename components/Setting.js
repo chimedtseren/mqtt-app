@@ -1,12 +1,8 @@
 import React,{ useState, useEffect } from 'react'
-import { StyleSheet, Text, View, Button, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TextInput } from 'react-native-gesture-handler';
-import {
-    SettingsDividerShort,
-    SettingsPicker
-  } from "react-native-settings-components";
-import DialogInput from 'react-native-dialog-input';
+import { SettingsDividerShort, SettingsPicker } from "react-native-settings-components";
 
 export default function Setting(props) {
     const [uri, setUri] = useState();
@@ -37,7 +33,6 @@ export default function Setting(props) {
     ];
     
     const saveData = async (inputText) => {
-        setShowModal(false);
         var tsave = [
             {
                 "label": inputText,
@@ -104,6 +99,23 @@ export default function Setting(props) {
         tempItem[index] = value;
         setChannels(tempItem);
     }
+    function show() {
+        Alert.prompt(
+        "Enter config name",
+        "Enter server config name here",
+        [
+            {
+            text: "cancel",
+            onPress: () => console.log("Cancel Pressed")
+            },
+            {
+            text: "save",
+            onPress: value => saveData(value),
+            }
+        ],
+        "plain-text"
+        );
+    }
 
     return (
     <ScrollView
@@ -111,17 +123,9 @@ export default function Setting(props) {
         flex: 1,
       }}
     >   
-
-    <DialogInput isDialogVisible={showModal}
-        title={"Config name"}
-        message={"Enter server config name here"}
-        hintInput ={"Server 01"}
-        submitInput={(inputText) => {saveData(inputText)} }
-        closeDialog={() => {setShowModal(false)}}>
-    </DialogInput>
       <View style={{ marginTop: 10,marginBottom: 5, marginLeft: 15, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{color:"#5c5c5c"}}>server config:</Text>
-        <TouchableOpacity onPress={() => {setShowModal(true)}} style={{ marginRight:15,fontSize: 10 }}><Text style={{color: "#0014c7"}}>saveconf</Text></TouchableOpacity>
+        <TouchableOpacity onPress={show} style={{ marginRight:15,fontSize: 10 }}><Text style={{color: "#0014c7"}}>save config</Text></TouchableOpacity>
       </View>
       <SettingsPicker
         title="saved config"
@@ -207,6 +211,17 @@ export default function Setting(props) {
             </Text>
         </TouchableOpacity>
       </View>
+      {props.isConnected == true ? <View style={{marginTop: 20, alignItems: "center"}}>
+        <TouchableOpacity
+            onPress={props.disconnect}
+            style={styles.btn}
+        >
+            <Text style={styles.text}>
+                Disconnect
+            </Text>
+        </TouchableOpacity>
+      </View>
+      :
       <View style={{marginTop: 20, alignItems: "center"}}>
         <TouchableOpacity
             onPress={connect}
@@ -215,10 +230,9 @@ export default function Setting(props) {
             <Text style={styles.text}>
                 {props.isConnected == "loading" && "connecting..."}
                 {props.isConnected == false && "Connect"}
-                {props.isConnected == true && "Disconnect"}
             </Text>
         </TouchableOpacity>
-      </View>
+      </View>}
     </ScrollView>
     )
 }

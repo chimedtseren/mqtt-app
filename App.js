@@ -1,4 +1,5 @@
 import React,{ useState,useEffect, useRef } from 'react';
+import { StatusBar, Alert } from 'react-native';
 import { Client, Message } from 'react-native-paho-mqtt';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,10 +11,10 @@ const Tab = createBottomTabNavigator();
 
 export default function App() {
   const [powerValue, setPowerValue] = useState(["0","0","0","0","0","0","0","0"]);
-  const [uri, setUri] = useState("wss://m20.cloudmqtt.com:30831/");
-  const [clientId, setClientId] = useState("web1usrn_0901");
-  const [userName, setUserName] = useState("iicndnyh");
-  const [password, setPassword] = useState("VSKMQ-P6rQrH");
+  const [uri, setUri] = useState(null);
+  const [clientId, setClientId] = useState(null);
+  const [userName, setUserName] = useState(null);
+  const [password, setPassword] = useState(null);
 
   const [isConnected, setIsConnected] = useState(false);
   const [channels, setChannels] = useState([]);
@@ -66,11 +67,14 @@ export default function App() {
     setPowerValue(bars);
 	}
 
-  function connect() {
-    setIsConnected("loading");
-    const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
-    setClient(sclient);
-  }
+  useEffect(() => {
+    if(uri){
+      setIsConnected("loading");
+      console.log("URI: "+uri+" URI "+clientId+ " ");
+      const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
+      setClient(sclient);
+    }
+  },[uri,clientId,userName,password,channels]);
 
   useEffect(() => {
     if(client){
@@ -104,8 +108,15 @@ export default function App() {
             client.subscribe(element); 
           });
           setIsConnected(true);
+          Alert.alert('Success', "Connection is successful!", [
+            { text: 'OK', onPress: () => console.log('OK Pressed') },
+          ]);
         })
         .catch((responseObject) => {
+          setIsConnected(false);
+          Alert.alert('Error', responseObject.message, [
+            { text: 'OK', onPress: () => console.log('OK Pressed') },
+          ]);
           if (responseObject.errorCode !== 0) {
             console.log('onConnectionLost:' + responseObject.errorMessage);
           }
@@ -129,14 +140,21 @@ export default function App() {
     setUserName(userName);
     setPassword(password);
     setChannels(items);
-    connect();
-    // const message = new Message(value);
-    // message.destinationName = '/A0';
-    // ref.current.send(message);
+  }
+  
+  function disconnect() {
+    ref.current.disconnect();
+    setIsConnected(false);
+    setUri(null);
+    setClientId(null);
+    setUserName(null);
+    setPassword(null);
+    setChannels([]);
   }
 
   return (
     <NavigationContainer>
+      <StatusBar barStyle="dark-content"/>
       <Tab.Navigator>
         <Tab.Screen name="Dashboard" 
           options={{
@@ -144,7 +162,7 @@ export default function App() {
               <Octicons name="dashboard" size={size} color={color} />
             ),
           }}
-          children={()=><Home powerValue={powerValue} connect={connect} isConnected={isConnected} />} 
+          children={()=><Home powerValue={powerValue} isConnected={isConnected} />} 
         />
         <Tab.Screen name="Publish" 
           options={{
@@ -160,7 +178,7 @@ export default function App() {
               <Ionicons name="settings-outline" size={size} color={color} />
             ),
           }}
-          children={()=><Setting isConnected={isConnected} setConf={setConf} uri={uri} clientId={clientId} userName={userName} password={password} />} 
+          children={()=><Setting isConnected={isConnected} setConf={setConf} disconnect={disconnect} uri={uri} clientId={clientId} userName={userName} password={password} />} 
          />
       </Tab.Navigator>
     </NavigationContainer>
