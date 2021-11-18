@@ -1,5 +1,5 @@
 import React,{ useState,useEffect, useRef } from 'react';
-import { StatusBar, Alert } from 'react-native';
+import { StatusBar, Alert, Platform } from 'react-native';
 import { Client, Message } from 'react-native-paho-mqtt';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -154,7 +154,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <StatusBar barStyle="dark-content"/>
+      {Platform.OS === 'ios' && <StatusBar barStyle="dark-content"/>}
       <Tab.Navigator>
         <Tab.Screen name="Dashboard" 
           options={{

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Alert, ScrollView, TouchableOpacity } from 'rea
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TextInput } from 'react-native-gesture-handler';
 import { SettingsDividerShort, SettingsPicker } from "react-native-settings-components";
+import { Feather, AntDesign } from '@expo/vector-icons';
 
 export default function Setting(props) {
     const [uri, setUri] = useState();
@@ -10,9 +11,8 @@ export default function Setting(props) {
     const [userName, setUserName] = useState();
     const [password, setPassword] = useState();
     const [channels, setChannels] = useState([]);
-    
-    const [showModal, setShowModal] = useState(false);
-    const [savedDataLabel, setSavedDataLabel] = useState([{label: "..",value: null}]);
+
+    const [savedDataLabel, setSavedDataLabel] = useState([{label: "empty", value: ""}]);
     const [selectedData, setSelectedData] = useState(null);
     const [savedData, setSavedData] = useState([]);
 
@@ -20,32 +20,27 @@ export default function Setting(props) {
         readData();
     }, []);
 
-    var saved = [
-        {
-            "label": "bukhug",
-            "value": "bukhug",
-            "uri": "wss://m20.cloudmqtt.com:30831/",
-            "clientId": "web1usrn_0901",
-            "userName": "iicndnyh",
-            "password": "VSKMQ-P6rQrH",
-            "channels": ["/A0","/A100"],
-        },
-    ];
-    
     const saveData = async (inputText) => {
-        var tsave = [
-            {
-                "label": inputText,
-                "value": inputText,
-                "uri": uri,
-                "clientId": clientId,
-                "userName": userName,
-                "password": password,
-                "channels": channels,
-            },
-        ];
+        var tsave = {
+            "label": inputText,
+            "value": inputText,
+            "uri": uri,
+            "clientId": clientId,
+            "userName": userName,
+            "password": password,
+            "channels": channels,
+        };
         try {
-            await AsyncStorage.setItem("@mqtt_config", JSON.stringify(tsave))
+            var arr = [];
+            var savedConfig = await AsyncStorage.getItem("@mqttserverconfig")
+            if(savedConfig){
+                arr = JSON.parse(savedConfig);
+                arr.push(tsave);
+            } else {
+                var arr = [];
+                arr.push(tsave);
+            }
+            await AsyncStorage.setItem("@mqttserverconfig", JSON.stringify(arr));
             console.log('Data successfully saved');
             readData();
         } catch (e) {
@@ -54,10 +49,10 @@ export default function Setting(props) {
     }
     const readData = async () => {
         try {
-            var savedConfig = await AsyncStorage.getItem("@mqtt_config")
+            var savedConfig = await AsyncStorage.getItem("@mqttserverconfig")
             savedConfig = JSON.parse(savedConfig);
             if (savedConfig !== null) {
-                var temp = [...savedDataLabel];
+                var temp = [];
                 savedConfig.map(el => {
                     temp.push({label: el.label, value: el.label},);
                 })
@@ -66,6 +61,35 @@ export default function Setting(props) {
             }
         } catch (e) {
             console.log('Failed to fetch the data from storage');
+            console.log('reset async storage');
+            await AsyncStorage.removeItem("@mqttserverconfig");
+            console.log('successful');
+        }
+    }
+
+    const resetStorage = async () => {
+        try {
+            await AsyncStorage.removeItem("@mqttserverconfig");
+            setSavedDataLabel([{label: "empty", value: ""}]);
+        } catch (e) {
+            console.log('Fail');
+        }
+    }
+
+    const removeStorageByLabel = async () => {
+        try {
+            var tempSavedData = [...savedData];
+            var filteredAry = tempSavedData.filter(function(e) { return e.label !== selectedData })
+            await AsyncStorage.removeItem("@mqttserverconfig");
+            await AsyncStorage.setItem("@mqttserverconfig", JSON.stringify(filteredAry));
+            readData();
+            setUri();
+            setClientId();
+            setUserName();
+            setPassword();
+            setChannels([]);
+        } catch (e) {
+            console.log('Fail');
         }
     }
 
@@ -73,12 +97,14 @@ export default function Setting(props) {
         var result = savedData.filter(obj => {
             return obj.label === value
         });
-        setUri(result[0].uri);
-        setClientId(result[0].clientId);
-        setUserName(result[0].userName);
-        setPassword(result[0].password);
-        setChannels(result[0].channels);
-        setSelectedData(value);
+        if(result.length != 0){
+            setUri(result[0].uri);
+            setClientId(result[0].clientId);
+            setUserName(result[0].userName);
+            setPassword(result[0].password);
+            setChannels(result[0].channels);
+            setSelectedData(value);
+        }
     }
 
     function connect() {
@@ -99,7 +125,7 @@ export default function Setting(props) {
         tempItem[index] = value;
         setChannels(tempItem);
     }
-    function show() {
+    function showSaveAlert() {
         Alert.prompt(
         "Enter config name",
         "Enter server config name here",
@@ -116,6 +142,23 @@ export default function Setting(props) {
         "plain-text"
         );
     }
+    function showRemoveAlert() {
+        Alert.prompt(
+        "Alert",
+        "Do you want to delete this config?",
+        [
+            {
+            text: "cancel",
+            onPress: () => console.log("Cancel Pressed")
+            },
+            {
+            text: "confirm",
+            onPress: value => removeStorageByLabel(),
+            }
+        ],
+        "default"
+        );
+    }
 
     return (
     <ScrollView
@@ -125,7 +168,6 @@ export default function Setting(props) {
     >   
       <View style={{ marginTop: 10,marginBottom: 5, marginLeft: 15, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{color:"#5c5c5c"}}>server config:</Text>
-        <TouchableOpacity onPress={show} style={{ marginRight:15,fontSize: 10 }}><Text style={{color: "#0014c7"}}>save config</Text></TouchableOpacity>
       </View>
       <SettingsPicker
         title="saved config"
@@ -191,27 +233,46 @@ export default function Setting(props) {
             />
           </View>)
       })}
-      <View style={{marginTop: 20, alignItems: "center"}}>
-        <TouchableOpacity
-            onPress={add}
-            style={styles.btn}
-        >
-            <Text style={styles.text}>
-                Add
-            </Text>
-        </TouchableOpacity>
+      <View style={{display: "flex", flexDirection: "row", justifyContent:"space-between", paddingHorizontal: 15}}>
+        <View style={{ width: "25%", marginTop: 20, alignItems: "center"}}>
+            <TouchableOpacity
+                onPress={add}
+                style={styles.btn}
+            >
+                <Text style={styles.text}>
+                    Add
+                </Text>
+            </TouchableOpacity>
+        </View>
+        <View style={{ width: "25%", marginTop: 20, alignItems: "center"}}>
+            <TouchableOpacity
+                onPress={remove}
+                style={styles.btn}
+            >
+                <Text style={styles.text}>
+                    Remove
+                </Text>
+            </TouchableOpacity>
+        </View>
+        <View style={{ width: "20%", marginTop: 20, alignItems: "center"}}>
+            <TouchableOpacity
+                onPress={showSaveAlert}
+                style={styles.btn}
+            >
+                <AntDesign name="save" size={18} color="black" />
+            </TouchableOpacity>
+        </View>
+        <View style={{ width: "20%", marginTop: 20, alignItems: "center"}}>
+            <TouchableOpacity
+                onPress={showRemoveAlert}
+                style={styles.btn}
+            >
+                <Feather name="trash" size={18} color="black" />
+            </TouchableOpacity>
+        </View>
       </View>
-      <View style={{marginTop: 20, alignItems: "center"}}>
-        <TouchableOpacity
-            onPress={remove}
-            style={styles.btn}
-        >
-            <Text style={styles.text}>
-                Remove
-            </Text>
-        </TouchableOpacity>
-      </View>
-      {props.isConnected == true ? <View style={{marginTop: 20, alignItems: "center"}}>
+      
+      {props.isConnected == true ? <View style={{marginVertical: 20, alignItems: "center"}}>
         <TouchableOpacity
             onPress={props.disconnect}
             style={styles.btn}
@@ -222,7 +283,7 @@ export default function Setting(props) {
         </TouchableOpacity>
       </View>
       :
-      <View style={{marginTop: 20, alignItems: "center"}}>
+      <View style={{marginVertical: 20, alignItems: "center"}}>
         <TouchableOpacity
             onPress={connect}
             style={styles.btn}
