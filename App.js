@@ -1,26 +1,25 @@
 import React,{ useState,useEffect, useRef } from 'react';
-import { StatusBar, Alert, Platform } from 'react-native';
+import { AppState, StatusBar, Alert, Platform } from 'react-native';
 import { Client, Message } from 'react-native-paho-mqtt';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Home from './components/Home';
 import Setting from './components/Setting';
-import Publish from './components/Publish';
-import { Ionicons, Octicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 const Tab = createBottomTabNavigator();
 
 export default function App() {
-  const [powerValue, setPowerValue] = useState(["0","0","0","0","0","0","0","0"]);
   const [uri, setUri] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [userName, setUserName] = useState(null);
   const [password, setPassword] = useState(null);
-
   const [isConnected, setIsConnected] = useState(false);
   const [channels, setChannels] = useState([]);
+  const [streamingValue, setStreamingValue] = useState([]);
 
   const [client, setClient] = useState();
   const ref = useRef();
+  const appState = useRef(AppState.currentState);
 
   const myStorage = {
     setItem: (key, item) => {
@@ -32,49 +31,42 @@ export default function App() {
     },
   };
 
-  function round(value, decimals) {
-		return Number(Math.round(value+'e'+decimals)+'e-'+decimals);
-	}
-
-  function subscribe_log(b01_len, b02_len) { //web interface log function
-    console.log("B01_length: " + b01_len + "   B02_length: " + b02_len);
-		var B03 = ""; // string variable
-		var B04 = []; // modbus array variable
-		var k,k1;
-		for(k=1; k < b01_len; k++) {
-			B03 += B01[k];
-		};
-		B03 += ",";
-		for(k1=1; k1 < b02_len; k1++) {
-			B03 += B02[k1];
-		};
-		B04 = B03.split(",");
-    
-    var hours = new Date().getHours();
-    var min = new Date().getMinutes();
-    var sec = new Date().getSeconds();
-
-    var bars = [
-      round(B04[2],2) + " MW",
-      round(B04[5],2) + " MWh",
-      round(B04[6],2) + " MW",
-      round(B04[7],2) + " W/m2",
-      round(B04[8],2),
-      round(B04[11],2),
-      round(B04[43],2) + " °C",
-      hours + ":" + min + ":" + sec
-    ];
-    setPowerValue(bars);
-	}
-
   useEffect(() => {
+    AppState.addEventListener('change', _handleAppStateChange);
+    return () => {
+      AppState.removeEventListener('change', _handleAppStateChange);
+    };
+  }, []);
+
+  const _handleAppStateChange = nextAppState => {
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      console.log('App has come to the foreground!');
+    }
+    appState.current = nextAppState;
     if(uri){
       setIsConnected("loading");
       console.log("URI: "+uri+" URI "+clientId+ " ");
       const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
       setClient(sclient);
     }
-  },[uri,clientId,userName,password,channels]);
+    console.log('AppState', appState.current);
+  };
+
+  useEffect(() => {
+    try {
+      if(uri){
+        setIsConnected("loading");
+        console.log("URI: "+uri+" URI "+clientId+ " ");
+        const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
+        setClient(sclient);
+      }
+    } catch (e) {
+        setIsConnected(false);
+        Alert.alert('Error', "can't connect to server. please check config!", [
+          { text: 'OK', onPress: () => console.log('OK Pressed') },
+        ]);
+    }
+  },[uri,clientId,userName,password]);
 
   useEffect(() => {
     if(client){
@@ -83,19 +75,22 @@ export default function App() {
           console.log(responseObject.errorMessage);
         }
       });
-      var b01_len,b02_len;
       client.on('messageReceived', (message) => {
-        switch(message.destinationName){
-          case "/A0":
-            B01 = message.payloadString;
-            b01_len = B01.length-1;
-            break;
-          case "/A100":
-            B02 = message.payloadString;
-            b02_len = B02.length-1;
-            break;
-        }
-        subscribe_log(b01_len,b02_len);
+        console.log("Message received" + new Date());
+        var tempchannels = [...channels];
+        tempchannels.map((element) => {
+            if(element.channel == message.destinationName){
+              let val = message.payloadString;
+              if(element.type === "switch"){
+                if(message.payloadString == "on")
+                  val = true;
+                else if(message.payloadString == "off")
+                  val = false;
+              }
+                element.value = val
+            }
+        });
+        setChannels(tempchannels);
       });
 
       client.connect({
@@ -105,7 +100,7 @@ export default function App() {
       })
         .then(() => {
           channels.forEach(element => {
-            client.subscribe(element); 
+            client.subscribe(element.channel); 
           });
           setIsConnected(true);
           Alert.alert('Success', "Connection is successful!", [
@@ -127,11 +122,19 @@ export default function App() {
     }
   }, [client]);
 
-  function sendMessage(channel ,value) {
-    console.log("SendMessage channel:"+ channel+" value:"+value);
-    const message = new Message(value);
+  function sendMessage(channel, value, item) {
+    let val;
+    if(value === true)
+      val = "on";
+    else if(value === false)
+      val = "off";
+    else
+      val = value;
+    console.log("SendMessage channel:"+ channel+" value:"+val);
+    const message = new Message(val);
     message.destinationName = channel;
     ref.current.send(message);
+    // setChannels([...item]);
   }
 
   function setConf(uri,clientId,userName,password,items) {
@@ -150,6 +153,13 @@ export default function App() {
     setUserName(null);
     setPassword(null);
     setChannels([]);
+    Alert.alert('Alert', "success", [
+      { text: 'OK', onPress: () => console.log('OK Pressed') },
+    ]);
+  }
+  function setChannelsPass(item) {
+    setChannels([...item]);
+    sendMessage();
   }
 
   return (
@@ -162,15 +172,7 @@ export default function App() {
               <Octicons name="dashboard" size={size} color={color} />
             ),
           }}
-          children={()=><Home powerValue={powerValue} isConnected={isConnected} />} 
-        />
-        <Tab.Screen name="Publish" 
-          options={{
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="publish" size={size} color={color} />
-            ),
-          }}
-          children={()=><Publish channels={channels} sendMessage={sendMessage} />} 
+          children={()=><Home streamingValue={streamingValue} channels={channels} isConnected={isConnected} setChannels={setChannelsPass} sendMessage={sendMessage} />} 
         />
         <Tab.Screen name="Settings"
           options={{

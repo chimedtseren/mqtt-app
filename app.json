@@ -2,7 +2,7 @@
   "expo": {
     "name": "MQTT control",
     "slug": "mqtt",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -18,7 +18,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cjsoft.app.mqtt"
+      "bundleIdentifier": "cjsoft.app.mqtt",
+      "buildNumber": "1.0.4"
     },
     "android": {
       "adaptiveIcon": {
