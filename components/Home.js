@@ -1,9 +1,20 @@
 import React,{ useState, useEffect } from 'react'
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView } from 'react-native'
+import { RefreshControl, StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView } from 'react-native'
 import { SettingsDividerShort, SettingsSwitch, } from "react-native-settings-components";
+
+const wait = (timeout) => {
+    return new Promise(resolve => setTimeout(resolve, timeout));
+}
 
 export default function Home(props) {
     const [myFields, setMyFields] = useState([]);
+    const [refreshing, setRefreshing] = React.useState(false);
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        props.reconnect();
+        wait(1000).then(() => setRefreshing(false));
+    }, []);
+    
     useEffect(() => {
         var temp = new Array(props.channels.length).fill(0);
         props.channels.map((element, index) => {
@@ -18,7 +29,9 @@ export default function Home(props) {
             temp[index] = set;
         });
         setMyFields(temp);
-        console.log(temp);
+        if(props.isConnected == true){
+            setRefreshing(false);
+        }
     },[props.isConnected]);
 
     function onChangeVal(value, index) {
@@ -34,7 +47,15 @@ export default function Home(props) {
     return (
         <View style={{ flex: 1 }}>
             {/* <KeyboardAvoidingView style={{ justifyContent: 'flex-end' }} behavior="position" keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}> */}
-                <ScrollView style={{ height: "100%" }}>
+                <ScrollView 
+                  style={{ height: "100%" }}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                    />
+                  }
+                >
                     {props.isConnected == "loading" && <View style={{alignItems:"center", marginTop: "20%"}}><Text>connecting...</Text></View>}
                     {myFields.length >= 1 ? 
                     <View>

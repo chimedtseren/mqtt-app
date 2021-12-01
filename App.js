@@ -41,16 +41,21 @@ export default function App() {
   const _handleAppStateChange = nextAppState => {
     if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
       console.log('App has come to the foreground!');
+      reconnect();
     }
     appState.current = nextAppState;
+    console.log('AppState', appState.current);
+  };
+
+  function reconnect() {
+    console.log("reconnect running");
     if(uri){
       setIsConnected("loading");
       console.log("URI: "+uri+" URI "+clientId+ " ");
       const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
       setClient(sclient);
     }
-    console.log('AppState', appState.current);
-  };
+  }
 
   useEffect(() => {
     try {
@@ -172,7 +177,7 @@ export default function App() {
               <Octicons name="dashboard" size={size} color={color} />
             ),
           }}
-          children={()=><Home streamingValue={streamingValue} channels={channels} isConnected={isConnected} setChannels={setChannelsPass} sendMessage={sendMessage} />} 
+          children={()=><Home streamingValue={streamingValue} channels={channels} isConnected={isConnected} reconnect={reconnect} setChannels={setChannelsPass} sendMessage={sendMessage} />} 
         />
         <Tab.Screen name="Settings"
           options={{
