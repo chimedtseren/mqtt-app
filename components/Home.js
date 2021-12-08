@@ -11,7 +11,8 @@ export default function Home(props) {
     const [refreshing, setRefreshing] = React.useState(false);
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
-        props.reconnect();
+        props.setRefresh(Math.random);
+        // props.reconnect();
         wait(1000).then(() => setRefreshing(false));
     }, []);
     
@@ -34,10 +35,13 @@ export default function Home(props) {
         }
     },[props.isConnected]);
 
-    function onChangeVal(value, index) {
+    function onChangeVal(value, index, channel="unknown") {
         let tempItem = [...myFields];
         tempItem[index] = value;
         setMyFields(tempItem);
+        if(channel != "unknown"){
+            add(channel, value);
+        }
     }
 
     function add(channel, val) {
@@ -56,7 +60,7 @@ export default function Home(props) {
                     />
                   }
                 >
-                    {props.isConnected == "loading" && <View style={{alignItems:"center", marginTop: "20%"}}><Text>connecting...</Text></View>}
+                    {props.isConnected == "loading" && <View style={{alignItems:"center", marginVertical: "10%"}}><Text>connecting...</Text></View>}
                     {myFields.length >= 1 ? 
                     <View>
                         {props.channels.map((item, index)=>{
@@ -67,16 +71,20 @@ export default function Home(props) {
                                     </View>
                                     {item.type == "switch" && 
                                         <SettingsSwitch
-                                            title={item.label+": "+item.value}
-                                            onValueChange={(value) => onChangeVal(value, index)}
+                                            title={item.label+": "+ item.value}
+                                            onValueChange={(value) => onChangeVal(value, index, item.channel)}
                                             value={myFields[index]}
                                         />
                                     }
                                     {item.type == "text" && 
                                         <View key={index} style={styles.row}>
-                                            <Text style={{width: "60%"}}>{item.label}: {item.value}</Text>
+                                            <Text style={styles.txt}>{item.label}: {item.value}</Text>
                                             <TextInput 
                                                 style={styles.input}
+                                                returnKeyType={'done'}
+                                                onSubmitEditing={() => {
+                                                    add(item.channel, myFields[index]);
+                                                }}
                                                 onChangeText={(value) => onChangeVal(value,index)}
                                                 value={myFields[index]}
                                                 placeholder="set value"
@@ -85,9 +93,13 @@ export default function Home(props) {
                                     }
                                     {item.type == "number" && 
                                         <View key={index} style={styles.row}>
-                                            <Text style={{width: "60%"}}>{item.label}: {item.value}</Text>
+                                            <Text style={styles.txt}>{item.label}: {item.value}</Text>
                                             <TextInput 
                                                 style={styles.input}
+                                                returnKeyType={'done'}
+                                                onSubmitEditing={() => {
+                                                    add(item.channel, myFields[index]);
+                                                }}
                                                 onChangeText={(value) => onChangeVal(value,index)}
                                                 value={myFields[index]}
                                                 keyboardType ="numeric"
@@ -95,17 +107,6 @@ export default function Home(props) {
                                             />
                                         </View>
                                     }
-                                    {/* {props.channels.length != index+1 && <SettingsDividerShort />} */}
-                                    <View style={{marginVertical: 20, alignItems: "center"}}>
-                                        <TouchableOpacity
-                                            onPress={() => add(item.channel, myFields[index])}
-                                            style={styles.btn}
-                                        >
-                                            <Text style={styles.text}>
-                                                Set
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
                                 </View>
                             )
                         })}
@@ -136,5 +137,12 @@ const styles = StyleSheet.create({
     },
     text: {
         color: "#000"
-    }
+    },
+    txt: {
+        width: "50%"
+    },
+    input: {
+        width: "50%",
+        textAlign: "right"
+    },
 });

@@ -16,6 +16,8 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [channels, setChannels] = useState([]);
   const [streamingValue, setStreamingValue] = useState([]);
+  
+  const [refresh, setRefresh] = useState(null);
 
   const [client, setClient] = useState();
   const ref = useRef();
@@ -41,21 +43,11 @@ export default function App() {
   const _handleAppStateChange = nextAppState => {
     if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
       console.log('App has come to the foreground!');
-      reconnect();
+      setRefresh(Math.random);
     }
     appState.current = nextAppState;
     console.log('AppState', appState.current);
   };
-
-  function reconnect() {
-    console.log("reconnect running");
-    if(uri){
-      setIsConnected("loading");
-      console.log("URI: "+uri+" URI "+clientId+ " ");
-      const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
-      setClient(sclient);
-    }
-  }
 
   useEffect(() => {
     try {
@@ -108,9 +100,9 @@ export default function App() {
             client.subscribe(element.channel); 
           });
           setIsConnected(true);
-          Alert.alert('Success', "Connection is successful!", [
-            { text: 'OK', onPress: () => console.log('OK Pressed') },
-          ]);
+          // Alert.alert('Success', "Connection is successful!", [
+          //   { text: 'OK', onPress: () => console.log('OK Pressed') },
+          // ]);
         })
         .catch((responseObject) => {
           setIsConnected(false);
@@ -158,7 +150,7 @@ export default function App() {
     setUserName(null);
     setPassword(null);
     setChannels([]);
-    Alert.alert('Alert', "success", [
+    Alert.alert('Alert', "disconnected", [
       { text: 'OK', onPress: () => console.log('OK Pressed') },
     ]);
   }
@@ -166,6 +158,20 @@ export default function App() {
     setChannels([...item]);
     sendMessage();
   }
+  useEffect(() => {
+    try {
+      if(isConnected){
+        setIsConnected("loading");
+        const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
+        setClient(sclient);
+      }
+    } catch (e) {
+        setIsConnected(false);
+        Alert.alert('Error', "can't connect to server. please check config!", [
+          { text: 'OK', onPress: () => console.log('OK Pressed') },
+        ]);
+    }
+  },[refresh]);
 
   return (
     <NavigationContainer>
@@ -177,7 +183,7 @@ export default function App() {
               <Octicons name="dashboard" size={size} color={color} />
             ),
           }}
-          children={()=><Home streamingValue={streamingValue} channels={channels} isConnected={isConnected} reconnect={reconnect} setChannels={setChannelsPass} sendMessage={sendMessage} />} 
+          children={()=><Home streamingValue={streamingValue} channels={channels} isConnected={isConnected} setChannels={setChannelsPass} sendMessage={sendMessage} setRefresh={setRefresh} />} 
         />
         <Tab.Screen name="Settings"
           options={{

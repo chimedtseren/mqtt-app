@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Alert, ScrollView, TouchableOpacity, KeyboardAv
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TextInput } from 'react-native-gesture-handler';
 import { SettingsDividerShort, SettingsPicker } from "react-native-settings-components";
-import { Feather, AntDesign, MaterialIcons } from '@expo/vector-icons';
+import { Feather, AntDesign, MaterialIcons, Entypo } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
 
 export default function Setting(props) {
@@ -12,6 +12,7 @@ export default function Setting(props) {
     const [userName, setUserName] = useState();
     const [password, setPassword] = useState();
     const [channels, setChannels] = useState([]);
+    const [visiblePassword, setVisiblePassword] = useState(true);
 
     const [savedDataLabel, setSavedDataLabel] = useState([{label: "empty", value: ""}]);
     const [selectedData, setSelectedData] = useState(null);
@@ -33,10 +34,24 @@ export default function Setting(props) {
         };
         try {
             var arr = [];
+            var isOverwriteIndex = null;
             var savedConfig = await AsyncStorage.getItem("@mqttserverconfig")
             if(savedConfig){
                 arr = JSON.parse(savedConfig);
-                arr.push(tsave);
+                arr.map((itm, index) => {
+                    if(itm.label == tsave.label) isOverwriteIndex = index;
+                });
+                if(isOverwriteIndex){
+                    arr[isOverwriteIndex] = tsave;
+                    Alert.alert('Success', "config overwrited", [
+                        { text: 'OK', onPress: () => console.log('OK Pressed') },
+                    ]);
+                } else {
+                    arr.push(tsave);
+                    Alert.alert('Success', "config created", [
+                        { text: 'OK', onPress: () => console.log('OK Pressed') },
+                    ]);
+                }
             } else {
                 var arr = [];
                 arr.push(tsave);
@@ -239,10 +254,18 @@ export default function Setting(props) {
                 <Text>Password</Text>
                 <TextInput 
                     style={styles.input}
+                    secureTextEntry={visiblePassword}
+                    textContentType="oneTimeCode"
                     onChangeText={setPassword}
                     value={password}
                     placeholder="password"
                 />
+                <TouchableOpacity
+                  style={{ width: "8%", height: "100%" }}
+                  onPress={() => {setVisiblePassword(!visiblePassword);}}
+                >
+                    {!visiblePassword ? <Entypo name="eye" size={18} color="black" /> : <Entypo name="eye-with-line" size={18} color="black" />}
+                </TouchableOpacity>
             </View>
             <View style={{ marginTop: 10,marginBottom: 5, marginLeft: 15 }}>
                 <Text style={{color:"#5c5c5c"}}>subscribe channels:</Text>
@@ -253,7 +276,7 @@ export default function Setting(props) {
                     <View style={{width: "30%"}}>
                         <Text style={styles.title}>Name:</Text>
                         <TextInput 
-                            style={styles.input}
+                            style={styles.inputw100}
                             onChangeText={(value) => setChannelValues(item,index,value,"label")}
                             value={item.label}
                             placeholder="Living room"
@@ -262,7 +285,7 @@ export default function Setting(props) {
                     <View style={{width: "30%"}}>
                         <Text style={styles.title}>channel:</Text>
                         <TextInput 
-                            style={styles.input}
+                            style={styles.inputw100}
                             onChangeText={(value) => setChannelValues(item,index,value,"channel")}
                             value={item.channel}
                             placeholder="S/A0"
@@ -375,5 +398,12 @@ const styles = StyleSheet.create({
     title: {
         color: "#5c5c5c",
         marginBottom: 5
+    },
+    input: {
+        width: "60%",
+        textAlign: "right",
+    },
+    inputw100: {
+        width: "100%"
     }
 });
