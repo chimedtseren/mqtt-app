@@ -1,13 +1,14 @@
 import React,{ useState, useEffect } from 'react'
 import { RefreshControl, StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView } from 'react-native'
-import { SettingsDividerShort, SettingsSwitch, } from "react-native-settings-components";
+import { SettingsSwitch, } from "react-native-settings-components";
 
 const wait = (timeout) => {
     return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
 export default function Home(props) {
-    const [myFields, setMyFields] = useState([]);
+    const [tempValue, setTempValue] = useState([]);
+    const [tempStatus, setTempStatus] = useState([]);
     const [refreshing, setRefreshing] = React.useState(false);
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -18,27 +19,47 @@ export default function Home(props) {
     
     useEffect(() => {
         var temp = new Array(props.channels.length).fill(0);
+        var tempS = new Array(props.channels.length).fill(0);
         props.channels.map((element, index) => {
-            let set = element.value
+            let set = element.value;
+            let tstatus = tempStatus[index];
+            if(element.value == "Online" || element.value == "Offline"){
+                tstatus = element.value;
+                if(element.value == "Online"){
+                    tstatus = "Online";
+                }
+                if(element.value == "Offline"){
+                    tstatus = "Offline";
+                }
+            }
             if(element.type === "switch"){
-                if(element.value == "on"){
+                if(element.value == "On"){
                     set = true;
-                } else {
+                } 
+                if(element.value == "Off"){
                     set = false;
                 }
             }
             temp[index] = set;
+            tempS[index] = tstatus;
         });
-        setMyFields(temp);
+        setTempValue(temp); 
+        setTempStatus(tempS);
         if(props.isConnected == true){
             setRefreshing(false);
         }
-    },[props.isConnected]);
+    },[props.channels,props.isConnected]);
+
+    // useEffect(() => {
+    //     console.log("tempValue");
+    //     // console.log(tempValue);
+
+    // },[props.channels]);
 
     function onChangeVal(value, index, channel="unknown") {
-        let tempItem = [...myFields];
+        let tempItem = [...tempValue];
         tempItem[index] = value;
-        setMyFields(tempItem);
+        setTempValue(tempItem);
         if(channel != "unknown"){
             add(channel, value);
         }
@@ -61,7 +82,7 @@ export default function Home(props) {
                   }
                 >
                     {props.isConnected == "loading" && <View style={{alignItems:"center", marginVertical: "10%"}}><Text>connecting...</Text></View>}
-                    {myFields.length >= 1 ? 
+                    {tempValue.length >= 1 ? 
                     <View>
                         {props.channels.map((item, index)=>{
                             return (
@@ -71,38 +92,38 @@ export default function Home(props) {
                                     </View>
                                     {item.type == "switch" && 
                                         <SettingsSwitch
-                                            title={item.label+": "+ item.value}
+                                            title={item.label + " status: " + tempStatus[index]}
                                             onValueChange={(value) => onChangeVal(value, index, item.channel)}
-                                            value={myFields[index]}
+                                            value={tempValue[index]}
                                         />
                                     }
                                     {item.type == "text" && 
                                         <View key={index} style={styles.row}>
-                                            <Text style={styles.txt}>{item.label}: {item.value}</Text>
+                                            <Text style={styles.txt}>{item.label} status: {tempStatus[index]}</Text>
                                             <TextInput 
                                                 style={styles.input}
                                                 returnKeyType={'done'}
                                                 onSubmitEditing={() => {
-                                                    add(item.channel, myFields[index]);
+                                                    add(item.channel, tempValue[index]);
                                                 }}
                                                 onChangeText={(value) => onChangeVal(value,index)}
-                                                value={myFields[index]}
+                                                value={tempValue[index]}
                                                 placeholder="set value"
                                             />
                                         </View>
                                     }
                                     {item.type == "number" && 
                                         <View key={index} style={styles.row}>
-                                            <Text style={styles.txt}>{item.label}: {item.value}</Text>
+                                            <Text style={styles.txt}>{item.label} status: {tempStatus[index]}</Text>
                                             <TextInput 
                                                 style={styles.input}
                                                 returnKeyType={'done'}
                                                 onSubmitEditing={() => {
-                                                    add(item.channel, myFields[index]);
+                                                    add(item.channel, tempValue[index]);
                                                 }}
                                                 onChangeText={(value) => onChangeVal(value,index)}
-                                                value={myFields[index]}
-                                                keyboardType ="numeric"
+                                                value={tempValue[index]}
+                                                keyboardType="numeric"
                                                 placeholder="set value"
                                             />
                                         </View>

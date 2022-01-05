@@ -8,25 +8,35 @@ import RNPickerSelect from 'react-native-picker-select';
 
 export default function Setting(props) {
     const [uri, setUri] = useState();
+    const [port, setPort] = useState();
     const [clientId, setClientId] = useState();
     const [userName, setUserName] = useState();
     const [password, setPassword] = useState();
     const [channels, setChannels] = useState([]);
     const [visiblePassword, setVisiblePassword] = useState(true);
 
-    const [savedDataLabel, setSavedDataLabel] = useState([{label: "empty", value: ""}]);
+    const [savedDataLabel, setSavedDataLabel] = useState([{id: null, label: "empty", value: ""}]);
     const [selectedData, setSelectedData] = useState(null);
+    const [selectedDataId, setSelectedDataId] = useState(null);
     const [savedData, setSavedData] = useState([]);
 
     useEffect(() => {
         readData();
+        setUri(props.uri);
+        setPort(props.port);
+        setClientId(props.clientId);
+        setUserName(props.userName);
+        setPassword(props.password);
+        setChannels(props.channels);
     }, []);
 
     const saveData = async (inputText) => {
         var tsave = {
+            "id": inputText + Math.floor(Math.random() * (1000 - 10 + 1) + 10),
             "label": inputText,
             "value": inputText,
             "uri": uri,
+            "port": port,
             "clientId": clientId,
             "userName": userName,
             "password": password,
@@ -35,13 +45,15 @@ export default function Setting(props) {
         try {
             var arr = [];
             var isOverwriteIndex = null;
-            var savedConfig = await AsyncStorage.getItem("@mqttserverconfig")
-            if(savedConfig){
+            var savedConfig = await AsyncStorage.getItem("@mserverconf")
+            if(savedConfig) {
                 arr = JSON.parse(savedConfig);
                 arr.map((itm, index) => {
-                    if(itm.label == tsave.label) isOverwriteIndex = index;
+                    if(itm.label == tsave.label && itm.id == selectedDataId) {
+                        isOverwriteIndex = index;
+                    }
                 });
-                if(isOverwriteIndex){
+                if(isOverwriteIndex) {
                     arr[isOverwriteIndex] = tsave;
                     Alert.alert('Success', "config overwrited", [
                         { text: 'OK', onPress: () => console.log('OK Pressed') },
@@ -56,7 +68,7 @@ export default function Setting(props) {
                 var arr = [];
                 arr.push(tsave);
             }
-            await AsyncStorage.setItem("@mqttserverconfig", JSON.stringify(arr));
+            await AsyncStorage.setItem("@mserverconf", JSON.stringify(arr));
             console.log('Data successfully saved');
             readData();
         } catch (e) {
@@ -65,7 +77,7 @@ export default function Setting(props) {
     }
     const readData = async () => {
         try {
-            var savedConfig = await AsyncStorage.getItem("@mqttserverconfig")
+            var savedConfig = await AsyncStorage.getItem("@mserverconf");
             savedConfig = JSON.parse(savedConfig);
             if (savedConfig !== null) {
                 var temp = [];
@@ -78,28 +90,29 @@ export default function Setting(props) {
         } catch (e) {
             console.log('Failed to fetch the data from storage');
             console.log('reset async storage');
-            await AsyncStorage.removeItem("@mqttserverconfig");
+            await AsyncStorage.removeItem("@mserverconf");
             console.log('successful');
         }
     }
 
     const resetStorage = async () => {
         try {
-            await AsyncStorage.removeItem("@mqttserverconfig");
+            await AsyncStorage.removeItem("@mserverconf");
             setSavedDataLabel([{label: "empty", value: ""}]);
         } catch (e) {
             console.log('Fail');
         }
     }
 
-    const removeStorageByLabel = async () => {
+    const removeStorageById = async () => {
         try {
             var tempSavedData = [...savedData];
-            var filteredAry = tempSavedData.filter(function(e) { return e.label !== selectedData })
-            await AsyncStorage.removeItem("@mqttserverconfig");
-            await AsyncStorage.setItem("@mqttserverconfig", JSON.stringify(filteredAry));
+            var filteredAry = tempSavedData.filter(function(e) { return e.id !== selectedDataId })
+            await AsyncStorage.removeItem("@mserverconf");
+            await AsyncStorage.setItem("@mserverconf", JSON.stringify(filteredAry));
             readData();
             setUri();
+            setPort();
             setClientId();
             setUserName();
             setPassword();
@@ -111,22 +124,39 @@ export default function Setting(props) {
 
     function setSaved(value){
         var result = savedData.filter(obj => {
+            // if(obj.label === value){
+            //     return obj;
+            // }
             return obj.label === value
         });
         if(result.length != 0){
             setUri(result[0].uri);
+            setPort(result[0].port);
             setClientId(result[0].clientId);
             setUserName(result[0].userName);
             setPassword(result[0].password);
             setChannels(result[0].channels);
             setSelectedData(value);
+            setSelectedDataId(result[0].id);
         }
     }
 
-    function connect() {
-        console.log("channels");
-        console.log(channels);
-        props.setConf(uri, clientId,userName,password,channels);
+    async function connect() {
+        props.setConf(uri,port,clientId,userName,password,channels);
+        var tsave = {
+            "uri": uri,
+            "port": port,
+            "clientId": clientId,
+            "userName": userName,
+            "password": password,
+            "channels": channels,
+        };
+        try {
+            await AsyncStorage.setItem("@mserverlast", JSON.stringify(tsave));
+            console.log('Data successfully saved');
+        } catch (e) {
+            console.log('Failed to save the data to the storage');
+        }
     }
     function add() {
         let tempItem = [];
@@ -146,6 +176,7 @@ export default function Setting(props) {
             setChannels(tempItem);
         } else {
             setChannels([{
+                id: null,
                 label: null,
                 channel: null,
                 type: null,
@@ -186,7 +217,7 @@ export default function Setting(props) {
             },
             {
             text: "confirm",
-            onPress: value => removeStorageByLabel(),
+            onPress: value => removeStorageById(),
             }
         ],
         "default"
@@ -207,8 +238,8 @@ export default function Setting(props) {
     return (
     <View style={{ flex: 1 }}>
         <ScrollView style={{ height: "100%" }}>
-            <View style={{ marginTop: 10,marginBottom: 5, marginLeft: 15, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{color:"#5c5c5c"}}>server config:</Text>
+            <View style={{ marginTop: 10, marginBottom: 5, marginLeft: 15, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{color:"#5c5c5c"}}>server config: {selectedData}</Text>
             </View>
             <SettingsPicker
                 title="saved config"
@@ -226,7 +257,17 @@ export default function Setting(props) {
                     style={styles.input}
                     onChangeText={setUri}
                     value={uri}
-                    placeholder="wss://serverurl:port/"
+                    placeholder="m12.cloudmqtt.com"
+                />
+            </View>
+            <SettingsDividerShort />
+            <View style={styles.row}>
+                <Text>Server port</Text>
+                <TextInput 
+                    style={styles.input}
+                    onChangeText={setPort}
+                    value={port}
+                    placeholder="34953"
                 />
             </View>
             <SettingsDividerShort />

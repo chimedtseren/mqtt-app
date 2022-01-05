@@ -1,5 +1,6 @@
 import React,{ useState,useEffect, useRef } from 'react';
 import { AppState, StatusBar, Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Client, Message } from 'react-native-paho-mqtt';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,6 +11,7 @@ const Tab = createBottomTabNavigator();
 
 export default function App() {
   const [uri, setUri] = useState(null);
+  const [port, setPort] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [userName, setUserName] = useState(null);
   const [password, setPassword] = useState(null);
@@ -33,7 +35,22 @@ export default function App() {
     },
   };
 
+  const readLastConfig = async () => {
+    return await AsyncStorage.getItem("@mserverlast");
+  }
+
   useEffect(() => {
+    readLastConfig()
+    .then((lastConf)=>{
+      if(lastConf){
+        lastConf = JSON.parse(lastConf);
+        setConf(lastConf.uri,lastConf.port,lastConf.clientId,lastConf.userName,lastConf.password,lastConf.channels);
+      }
+    })
+    .catch((err)=>{
+      console.log('Failed to fetch the data from storage reseting async storage err:' + err);
+    });
+
     AppState.addEventListener('change', _handleAppStateChange);
     return () => {
       AppState.removeEventListener('change', _handleAppStateChange);
@@ -52,9 +69,8 @@ export default function App() {
   useEffect(() => {
     try {
       if(uri){
-        setIsConnected("loading");
-        console.log("URI: "+uri+" URI "+clientId+ " ");
-        const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
+        // console.log("URI: "+uri+" URI "+clientId+ " ");
+        const sclient = new Client({ uri: "wss://"+uri+":"+port+"/", clientId: clientId, storage: myStorage });
         setClient(sclient);
       }
     } catch (e) {
@@ -63,7 +79,7 @@ export default function App() {
           { text: 'OK', onPress: () => console.log('OK Pressed') },
         ]);
     }
-  },[uri,clientId,userName,password]);
+  },[isConnected]);
 
   useEffect(() => {
     if(client){
@@ -73,19 +89,18 @@ export default function App() {
         }
       });
       client.on('messageReceived', (message) => {
-        console.log("Message received" + new Date());
         var tempchannels = [...channels];
         tempchannels.map((element) => {
-            if(element.channel == message.destinationName){
-              let val = message.payloadString;
-              if(element.type === "switch"){
-                if(message.payloadString == "on")
-                  val = true;
-                else if(message.payloadString == "off")
-                  val = false;
-              }
-                element.value = val
+          if(element.channel == message.destinationName){
+            let val = message.payloadString;
+            if(element.type === "switch"){
+              if(message.payloadString == "on")
+                val = true;
+              else if(message.payloadString == "off")
+                val = false;
             }
+              element.value = val
+          }
         });
         setChannels(tempchannels);
       });
@@ -134,18 +149,21 @@ export default function App() {
     // setChannels([...item]);
   }
 
-  function setConf(uri,clientId,userName,password,items) {
+  function setConf(uri,port,clientId,userName,password,items) {
     setUri(uri);
+    setPort(port);
     setClientId(clientId);
     setUserName(userName);
     setPassword(password);
     setChannels(items);
+    setIsConnected("loading");
   }
   
   function disconnect() {
     ref.current.disconnect();
     setIsConnected(false);
     setUri(null);
+    setPort(null);
     setClientId(null);
     setUserName(null);
     setPassword(null);
@@ -162,7 +180,7 @@ export default function App() {
     try {
       if(isConnected){
         setIsConnected("loading");
-        const sclient = new Client({ uri: uri, clientId: clientId, storage: myStorage });
+        const sclient = new Client({ uri: "wss://"+uri+":"+port+"/", clientId: clientId, storage: myStorage });
         setClient(sclient);
       }
     } catch (e) {
@@ -191,7 +209,7 @@ export default function App() {
               <Ionicons name="settings-outline" size={size} color={color} />
             ),
           }}
-          children={()=><Setting isConnected={isConnected} setConf={setConf} disconnect={disconnect} uri={uri} clientId={clientId} userName={userName} password={password} />} 
+          children={()=><Setting isConnected={isConnected} setConf={setConf} disconnect={disconnect} uri={uri} port={port} clientId={clientId} userName={userName} password={password} channels={channels} />} 
          />
       </Tab.Navigator>
     </NavigationContainer>
